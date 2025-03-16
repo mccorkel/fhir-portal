@@ -1,0 +1,26 @@
+{
+    "family": {
+        "id": "string",
+        "ownerUserId": "string",
+        "users": [
+            {
+                "id": "string",
+                "name": "string",
+                "email": "string",
+                "role": "string"
+            }   
+        ],
+        "connections": [
+            {
+                "id": "string",
+                "connectionName": "string",
+                "fromUser": "string",
+                "toUser": "string",
+                "isSharingWith": "boolean",
+                "sharingFields": [
+                    "string"
+                ]
+        }]
+    }
+}
+        
