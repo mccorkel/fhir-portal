@@ -1,14 +1,11 @@
 import { BlobServiceClient } from "@azure/storage-blob";
 
-// Initialize the Blob Service Client
-const blobServiceClient = new BlobServiceClient(
-  process.env.BLOB_CONNECTION_STRING || ""
-);
+// Initialize the Blob Service Client with proper URL formatting
+const connectionString = process.env.BLOB_CONNECTION_STRING || "";
+const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
 
-// Get the container client
-const containerClient = blobServiceClient.getContainerClient(
-  process.env.BLOB_CONTAINER_NAME || ""
-);
+// Get the container client with the correct name 'avatars'
+const containerClient = blobServiceClient.getContainerClient("avatars");
 
 // Upload a file to blob storage
 export async function uploadAvatar(
