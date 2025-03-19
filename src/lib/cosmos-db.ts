@@ -32,7 +32,8 @@ export async function getUser(userId: string): Promise<User | null> {
 export async function upsertUser(user: User): Promise<User> {
   try {
     const { resource } = await container.items.upsert(user);
-    return resource as User;
+    // First cast to unknown, then to User to safely handle the type conversion
+    return resource as unknown as User;
   } catch (error) {
     console.error("Error upserting user:", error);
     throw error;
