@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: 'standalone',
+  experimental: {
+    serverActions: true,
+  },
   async headers() {
     return [
       {
@@ -15,6 +19,6 @@ const nextConfig = {
       },
     ];
   },
-};
+}
 
-module.exports = nextConfig; 
+module.exports = nextConfig 

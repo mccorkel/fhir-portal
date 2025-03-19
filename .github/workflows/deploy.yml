@@ -1,0 +1,52 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+env:
+  AZURE_WEBAPP_NAME: tigercare-app
+  REGISTRY_NAME: tigercareregistry
+  RESOURCE_GROUP: tigercare-rg
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+
+    - name: Log in to Azure Container Registry
+      uses: docker/login-action@v2
+      with:
+        registry: ${{ env.REGISTRY_NAME }}.azurecr.io
+        username: ${{ secrets.REGISTRY_USERNAME }}
+        password: ${{ secrets.REGISTRY_PASSWORD }}
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v4
+      with:
+        context: .
+        push: true
+        tags: ${{ env.REGISTRY_NAME }}.azurecr.io/fhir-portal:${{ github.sha }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+
+    - name: Deploy to Azure App Service
+      uses: azure/webapps-deploy@v2
+      with:
+        app-name: ${{ env.AZURE_WEBAPP_NAME }}
+        resource-group-name: ${{ env.RESOURCE_GROUP }}
+        images: ${{ env.REGISTRY_NAME }}.azurecr.io/fhir-portal:${{ github.sha }}
+        configuration-file: |
+          NEXTAUTH_URL=https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
+          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
+          AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
+          AZURE_AD_CLIENT_SECRET=${{ secrets.AZURE_AD_CLIENT_SECRET }}
+          AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}
+          FHIR_SERVICE_URL=${{ secrets.FHIR_SERVICE_URL }} 
