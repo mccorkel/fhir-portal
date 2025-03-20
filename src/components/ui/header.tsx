@@ -39,6 +39,12 @@ export function Header() {
               >
                 My Records
               </Link>
+              <Link 
+                href="/health-records" 
+                className={`text-blue-600 hover:underline ${pathname === '/health-records' ? 'font-bold' : ''}`}
+              >
+                Health Records
+              </Link>
             </nav>
             <Button 
               variant="outline" 

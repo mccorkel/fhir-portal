@@ -3,6 +3,7 @@
 import React from 'react';
 import { SessionProvider } from "next-auth/react";
 import { AuthProvider } from "../lib/auth-context-with-msal";
+import { CurrentUserProvider } from "../lib/current-user-context";
 import { MsalProvider } from "@azure/msal-react";
 import { PublicClientApplication } from "@azure/msal-browser";
 import { msalConfig } from "../lib/msal-config";
@@ -15,7 +16,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
     <MsalProvider instance={msalInstance}>
       <SessionProvider>
         <AuthProvider>
-          {children}
+          <CurrentUserProvider>
+            {children}
+          </CurrentUserProvider>
         </AuthProvider>
       </SessionProvider>
     </MsalProvider>

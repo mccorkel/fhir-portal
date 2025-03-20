@@ -4,7 +4,7 @@ import { createContext, useContext, useState, useEffect, ReactNode } from 'react
 import { signIn, signOut, useSession } from 'next-auth/react';
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import { InteractionRequiredAuthError } from "@azure/msal-browser";
-import { loginRequest, fhirApiRequest } from "./msal-config";
+import { loginRequest } from "./msal-config";
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -28,75 +28,62 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const { data: session, status } = useSession();
   const { instance, accounts } = useMsal();
   const isMsalAuthenticated = useIsAuthenticated();
-  const loading = status === 'loading';
-  const isAuthenticated = status === 'authenticated' || isMsalAuthenticated;
+  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
 
-  // Update user when session or MSAL accounts change
   useEffect(() => {
+    if (status === 'loading') {
+      setLoading(true);
+      return;
+    }
+
     if (session?.user) {
       setUser(session.user);
+      setLoading(false);
     } else if (accounts.length > 0) {
       setUser({
         name: accounts[0].name,
         email: accounts[0].username,
+        id: accounts[0].localAccountId,
       });
+      setLoading(false);
     } else {
       setUser(null);
+      setLoading(false);
     }
-  }, [session, accounts]);
+  }, [session, accounts, status]);
 
   const login = async () => {
-    if (typeof window !== 'undefined' && window.navigator.userAgent.indexOf('Node.js') === -1) {
-      try {
-        // Try MSAL login first
-        await instance.loginPopup(loginRequest);
-      } catch (error) {
-        console.error("MSAL login failed, falling back to NextAuth:", error);
-        // Fall back to NextAuth
-        await signIn('azure-ad', { callbackUrl: '/' });
-      }
-    } else {
-      // Server-side or Node.js environment, use NextAuth
+    try {
       await signIn('azure-ad', { callbackUrl: '/' });
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
     }
   };
 
   const logout = async () => {
-    if (isMsalAuthenticated) {
-      // MSAL logout
-      instance.logoutPopup({
-        postLogoutRedirectUri: window.location.origin,
-      });
-    } else {
-      // NextAuth logout
+    try {
+      if (isMsalAuthenticated) {
+        await instance.logoutPopup({
+          postLogoutRedirectUri: window.location.origin,
+        });
+      }
       await signOut({ callbackUrl: '/' });
+    } catch (error) {
+      console.error("Logout failed:", error);
+      throw error;
     }
   };
 
   const acquireFhirToken = async (): Promise<string | null> => {
-    if (!isAuthenticated) return null;
-
-    try {
-      // Get token from our token endpoint
-      const response = await fetch('/api/auth/token');
-      const data = await response.json();
-
-      if (!response.ok || !data.accessToken) {
-        console.error("Failed to acquire FHIR token:", data.error);
-        return null;
-      }
-
-      return data.accessToken;
-    } catch (error) {
-      console.error("Error acquiring FHIR token:", error);
-      return null;
-    }
+    if (!session?.accessToken) return null;
+    return session.accessToken;
   };
 
   return (
     <AuthContext.Provider value={{
-      isAuthenticated,
+      isAuthenticated: status === 'authenticated' || isMsalAuthenticated,
       user,
       loading,
       login,

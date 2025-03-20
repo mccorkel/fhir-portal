@@ -23,7 +23,6 @@ const getFhirScope = () => {
 // Add scopes for API access
 export const loginRequest = {
   scopes: [
-    "User.Read",
     `${getFhirScope()}/.default`
   ],
 };
