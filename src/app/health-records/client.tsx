@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { User } from '@/lib/cosmos-db';
-import { FastenConnectButton } from '@/components/FastenConnectButton';
+import { FastenStitch } from '@/components/FastenStitch';
 
 interface FhirData {
   patients?: any;
@@ -96,12 +96,12 @@ export function ClientHealthRecords({ initialUser, fhirData }: ClientHealthRecor
           </div>
         ) : (
           <p className="text-gray-500">
-            No health records connected yet. Click below to connect your first health record source.
+            No health records connected yet. Use the provider selector below to connect your health records.
           </p>
         )}
 
         <div className="mt-8">
-          <FastenConnectButton />
+          <FastenStitch />
         </div>
       </div>
     </div>
