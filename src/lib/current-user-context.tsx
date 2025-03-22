@@ -1,101 +1,66 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useAuth } from './auth-context-with-msal';
-import { User } from './cosmos-db';
+'use client';
+
+import React, { createContext, useContext, useState, useEffect } from 'react';
+
+export interface User {
+  id: string;
+  email: string;
+  name: string;
+  picture?: string;
+}
 
 interface CurrentUserContextType {
-  currentUser: User | null;
-  loading: boolean;
-  error: string | null;
-  refreshUser: () => Promise<void>;
+  user: User | null;
+  setUser: (user: User | null) => void;
+  isLoading: boolean;
+  logout: () => void;
 }
 
 const CurrentUserContext = createContext<CurrentUserContextType>({
-  currentUser: null,
-  loading: true,
-  error: null,
-  refreshUser: async () => {},
+  user: null,
+  setUser: () => {},
+  isLoading: true,
+  logout: () => {},
 });
 
-export const CurrentUserProvider = ({ children }: { children: ReactNode }) => {
-  const { user: authUser, isAuthenticated, loading: authLoading } = useAuth();
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const fetchOrCreateUser = async (userId: string) => {
-    try {
-      // First, try to fetch the existing user
-      const response = await fetch(`/api/users/${userId}`);
-      
-      if (response.status === 404) {
-        // User doesn't exist, create a new one
-        const createResponse = await fetch(`/api/users/${userId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            username: authUser.email || authUser.name,
-            avatarUri: null,
-            fastenConnections: [],
-          }),
-        });
-        
-        if (!createResponse.ok) {
-          throw new Error('Failed to create user record');
-        }
-        
-        return await createResponse.json();
-      } else if (!response.ok) {
-        throw new Error('Failed to fetch user data');
-      }
-      
-      return await response.json();
-    } catch (error) {
-      console.error('Error in fetchOrCreateUser:', error);
-      throw error;
-    }
-  };
-
-  const refreshUser = async () => {
-    if (!authUser?.id || !isAuthenticated) return;
-    
-    setLoading(true);
-    setError(null);
-    
-    try {
-      const userData = await fetchOrCreateUser(authUser.id);
-      setCurrentUser(userData);
-    } catch (error) {
-      console.error('Error refreshing user:', error);
-      setError('Failed to load user data');
-    } finally {
-      setLoading(false);
-    }
-  };
+export function CurrentUserProvider({ children }: { children: React.ReactNode }) {
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
-
-    if (!isAuthenticated || !authUser?.id) {
-      setCurrentUser(null);
-      setLoading(false);
-      return;
+    // Check for user data in cookies on mount
+    const userCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('user='));
+    
+    if (userCookie) {
+      try {
+        const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]));
+        setUser(userData);
+      } catch (error) {
+        console.error('Error parsing user cookie:', error);
+      }
     }
+    setIsLoading(false);
+  }, []);
 
-    refreshUser();
-  }, [authUser?.id, isAuthenticated, authLoading]);
+  const logout = () => {
+    setUser(null);
+    // Clear cookies
+    document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    // Redirect to home
+    window.location.href = '/';
+  };
 
   return (
-    <CurrentUserContext.Provider value={{
-      currentUser,
-      loading: loading || authLoading,
-      error,
-      refreshUser,
-    }}>
+    <CurrentUserContext.Provider value={{ user, setUser, isLoading, logout }}>
       {children}
     </CurrentUserContext.Provider>
   );
-};
+}
 
-export const useCurrentUser = () => useContext(CurrentUserContext); 
+export function useCurrentUser() {
+  return useContext(CurrentUserContext);
+} 

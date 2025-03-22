@@ -1,7 +1,25 @@
-import React from 'react';
+'use client';
+
+import { useEffect } from 'react';
 import Link from 'next/link';
+import { GoogleLoginButton } from '@/components/GoogleLoginButton';
+import { useCurrentUser } from '@/lib/current-user-context';
 
 export default function Home() {
+  const { setUser } = useCurrentUser();
+
+  useEffect(() => {
+    // Check for user data in cookies
+    const userCookie = document.cookie
+      .split('; ')
+      .find(row => row.startsWith('user='));
+    
+    if (userCookie) {
+      const userData = JSON.parse(decodeURIComponent(userCookie.split('=')[1]));
+      setUser(userData);
+    }
+  }, [setUser]);
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-center p-24">
       <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm">
@@ -31,6 +49,11 @@ export default function Home() {
               Upload FHIR bundles to the system.
             </p>
           </Link>
+        </div>
+
+        <div className="w-full max-w-md space-y-4 mt-10">
+          <h1 className="text-2xl font-bold text-center">Test Google Auth</h1>
+          <GoogleLoginButton />
         </div>
       </div>
     </main>

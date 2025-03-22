@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
         // Update connection export status
         await updateFastenConnectionExport(org_id, task_id, {
           taskId: task_id,
-          status: 'completed',
+          status: 'success',
           downloadUrl: download_link,
           exportedAt: new Date().toISOString()
         });

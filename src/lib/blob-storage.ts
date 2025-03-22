@@ -1,8 +1,12 @@
-import { BlobServiceClient } from "@azure/storage-blob";
+import { BlobServiceClient, StorageSharedKeyCredential } from "@azure/storage-blob";
+import { DefaultAzureCredential } from "@azure/identity";
 
-// Initialize the Blob Service Client with proper URL formatting
-const connectionString = process.env.BLOB_CONNECTION_STRING || "";
-const blobServiceClient = BlobServiceClient.fromConnectionString(connectionString);
+const accountName = process.env.STORAGE_ACCOUNT_NAME || "";
+const blobEndpoint = `https://${accountName}.blob.core.windows.net`;
+
+// Initialize the Blob Service Client with DefaultAzureCredential
+const credential = new DefaultAzureCredential();
+const blobServiceClient = new BlobServiceClient(blobEndpoint, credential);
 
 // Get the container client with the correct name 'avatars'
 const containerClient = blobServiceClient.getContainerClient("avatars");

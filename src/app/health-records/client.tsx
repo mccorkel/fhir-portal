@@ -1,109 +1,167 @@
 "use client";
 
-import { useState } from 'react';
-import { User } from '@/lib/cosmos-db';
-import { FastenStitch } from '@/components/FastenStitch';
+import { useEffect, useState } from 'react';
+import { useAzureAuth } from '@/lib/azure-auth-context';
+import { FhirClient } from '@/lib/fhir-client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
-interface FhirData {
-  patients?: any;
-  observations?: any;
-  error?: string;
+interface FhirResource {
+  resourceType: string;
+  id: string;
+  [key: string]: any;
 }
 
-interface ClientHealthRecordsProps {
-  initialUser: User;
-  fhirData: FhirData | null;
-}
+export default function HealthRecordsClient() {
+  const { getServiceToken } = useAzureAuth();
+  const [patients, setPatients] = useState<FhirResource[]>([]);
+  const [observations, setObservations] = useState<FhirResource[]>([]);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [metadata, setMetadata] = useState<any>(null);
 
-export function ClientHealthRecords({ initialUser, fhirData }: ClientHealthRecordsProps) {
-  const [user, setUser] = useState(initialUser);
+  useEffect(() => {
+    async function fetchResources() {
+      try {
+        setError(null);
+        setLoading(true);
+
+        // Get the service token
+        const token = await getServiceToken();
+        if (!token) {
+          throw new Error('Failed to get service token');
+        }
+
+        // Create FHIR client with token
+        const client = new FhirClient(token);
+
+        // First, try to get metadata to check if we can connect
+        try {
+          const metadataResponse = await client.request('metadata');
+          console.log('FHIR metadata:', metadataResponse);
+          setMetadata(metadataResponse);
+        } catch (error) {
+          console.error('Failed to fetch FHIR metadata:', error);
+        }
+
+        // Try to get all resources first
+        try {
+          const allResources = await client.searchAll();
+          console.log('All resources:', allResources);
+        } catch (error) {
+          console.error('Failed to fetch all resources:', error);
+        }
+
+        // Fetch FHIR resources with parameters
+        const [patientsData, observationsData] = await Promise.all([
+          client.searchPatient({
+            '_summary': 'true',
+            '_count': '100'
+          }),
+          client.searchObservation({
+            '_summary': 'true',
+            '_count': '100'
+          })
+        ]);
+
+        setPatients(patientsData.entry?.map((e: any) => e.resource) || []);
+        setObservations(observationsData.entry?.map((e: any) => e.resource) || []);
+      } catch (error) {
+        console.error('Failed to fetch FHIR resources:', error);
+        setError(error instanceof Error ? error.message : 'Failed to fetch health records');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchResources();
+  }, [getServiceToken]);
+
+  if (loading) {
+    return <div>Loading health records...</div>;
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <div className="text-red-500">Error: {error}</div>
+        {metadata && (
+          <div className="text-sm text-gray-600">
+            <h3 className="font-semibold">FHIR Server Information:</h3>
+            <pre className="mt-2 p-4 bg-gray-100 rounded overflow-auto">
+              {JSON.stringify(metadata, null, 2)}
+            </pre>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold mb-8">Health Records</h1>
-
-      {/* FHIR Data Section */}
-      {fhirData && (
-        <div className="mb-12">
-          <h2 className="text-xl font-semibold mb-4">FHIR Health Records</h2>
-          {fhirData.error ? (
-            <div className="text-red-500">{fhirData.error}</div>
-          ) : (
-            <div className="space-y-6">
-              {/* Patients */}
-              {fhirData.patients?.entry?.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Patient Information</h3>
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {fhirData.patients.entry.map((entry: any) => (
-                      <div key={entry.resource.id} className="p-4 border rounded-lg">
-                        <p>Name: {entry.resource.name?.[0]?.text || 'N/A'}</p>
-                        <p>Gender: {entry.resource.gender || 'N/A'}</p>
-                        <p>Birth Date: {entry.resource.birthDate || 'N/A'}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Observations */}
-              {fhirData.observations?.entry?.length > 0 && (
-                <div className="space-y-4">
-                  <h3 className="text-lg font-medium">Observations</h3>
-                  <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                    {fhirData.observations.entry.map((entry: any) => (
-                      <div key={entry.resource.id} className="p-4 border rounded-lg">
-                        <p className="font-medium">{entry.resource.code?.text || 'Unknown Observation'}</p>
-                        <p>Value: {entry.resource.valueQuantity?.value || 'N/A'} {entry.resource.valueQuantity?.unit || ''}</p>
-                        <p className="text-sm text-gray-500">
-                          Date: {new Date(entry.resource.effectiveDateTime).toLocaleDateString()}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
+    <div className="space-y-6">
+      {patients.length === 0 && observations.length === 0 && (
+        <div className="text-amber-600 bg-amber-50 p-4 rounded">
+          No health records found. This could mean:
+          <ul className="list-disc ml-6 mt-2">
+            <li>No records have been uploaded yet</li>
+            <li>You don't have permission to access the records</li>
+            <li>The FHIR service is empty</li>
+          </ul>
         </div>
       )}
 
-      {/* Fasten Connections Section */}
-      <div className="space-y-8">
-        <h2 className="text-xl font-semibold">Connected Health Sources</h2>
-        {user.fastenConnections && user.fastenConnections.length > 0 ? (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {user.fastenConnections.map((connection) => (
-              <div
-                key={connection.orgConnectionId}
-                className="p-4 border rounded-lg shadow-sm"
-              >
-                <h3 className="font-medium">{connection.platformType}</h3>
-                <p className="text-sm text-gray-500">
-                  Connected: {new Date(connection.createdAt).toLocaleDateString()}
-                </p>
-                <p className="text-sm text-gray-500">
-                  Status: {connection.status}
-                </p>
-                {connection.lastExport && (
-                  <p className="text-sm text-gray-500">
-                    Last Export: {new Date(connection.lastExport.exportedAt).toLocaleDateString()}
-                    ({connection.lastExport.status})
-                  </p>
-                )}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500">
-            No health records connected yet. Use the provider selector below to connect your health records.
-          </p>
-        )}
+      <Card>
+        <CardHeader>
+          <CardTitle>Patients ({patients.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {patients.length === 0 ? (
+            <p className="text-gray-600">No patients found</p>
+          ) : (
+            <ul className="space-y-2">
+              {patients.map((patient) => (
+                <li key={patient.id}>
+                  {patient.name?.[0]?.given?.join(' ')} {patient.name?.[0]?.family}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
 
-        <div className="mt-8">
-          <FastenStitch />
-        </div>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Observations ({observations.length})</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {observations.length === 0 ? (
+            <p className="text-gray-600">No observations found</p>
+          ) : (
+            <ul className="space-y-2">
+              {observations.map((observation) => (
+                <li key={observation.id}>
+                  {observation.code?.text || observation.code?.coding?.[0]?.display}:{' '}
+                  {observation.valueQuantity
+                    ? `${observation.valueQuantity.value} ${observation.valueQuantity.unit}`
+                    : observation.valueString}
+                </li>
+              ))}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+
+      {metadata && (
+        <Card>
+          <CardHeader>
+            <CardTitle>FHIR Server Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <pre className="text-sm bg-gray-100 p-4 rounded overflow-auto">
+              {JSON.stringify(metadata, null, 2)}
+            </pre>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 } 

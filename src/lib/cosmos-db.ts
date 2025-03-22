@@ -15,13 +15,17 @@ export interface FastenConnection {
   orgConnectionId: string;
   platformType: string;
   portalId: string;
+  status: 'pending' | 'connected' | 'error';
   createdAt: string;
-  status: 'connected' | 'disconnected' | 'error';
+  updatedAt?: string;
+  state: string;  // Add state field for OAuth flow
+  provider: string;
   lastExport?: {
-    taskId: string;
-    status: 'pending' | 'completed' | 'error';
-    downloadUrl?: string;
+    taskId?: string;
+    status: 'success' | 'error';
     exportedAt: string;
+    error?: string;
+    downloadUrl?: string;
   };
 }
 
@@ -73,18 +77,14 @@ export async function updateUserAvatar(userId: string, avatarUri: string): Promi
 // Add a Fasten connection to a user
 export async function addFastenConnection(
   userId: string,
-  connection: Omit<FastenConnection, 'createdAt' | 'status'>
+  connection: Omit<FastenConnection, 'lastExport'>
 ): Promise<User | null> {
   try {
     const user = await getUser(userId);
     if (!user) return null;
 
     const fastenConnections = user.fastenConnections || [];
-    fastenConnections.push({
-      ...connection,
-      createdAt: new Date().toISOString(),
-      status: 'connected'
-    });
+    fastenConnections.push(connection);
 
     return await upsertUser({
       ...user,
@@ -182,5 +182,19 @@ export async function getFastenConnection(
   } catch (error) {
     console.error("Error getting Fasten connection:", error);
     return null;
+  }
+}
+
+export async function updateUser(user: User): Promise<User> {
+  try {
+    const { resource } = await container.items.upsert({
+      ...user,
+      type: 'user',
+      username: user.username || user.id, // Ensure username is set
+    });
+    return resource as unknown as User;
+  } catch (error) {
+    console.error('Error updating user:', error);
+    throw error;
   }
 } 

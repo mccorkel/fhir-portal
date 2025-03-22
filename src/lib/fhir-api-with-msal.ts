@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { headers } from 'next/headers';
 
 // This is a utility function to handle FHIR API requests with client credentials
 export async function handleFhirRequest(
@@ -8,8 +9,16 @@ export async function handleFhirRequest(
   body?: any
 ) {
   try {
-    // Get token from our token endpoint
-    const tokenResponse = await fetch('/api/auth/token');
+    // Get token from our token endpoint using absolute URL
+    const host = headers().get('host') || 'localhost:3000';
+    const protocol = process.env.NODE_ENV === 'development' ? 'http' : 'https';
+    const tokenUrl = `${protocol}://${host}/api/auth/token`;
+    
+    const tokenResponse = await fetch(tokenUrl, {
+      headers: {
+        'Cookie': req.headers.get('cookie') || '',
+      },
+    });
     const tokenData = await tokenResponse.json();
     
     if (!tokenResponse.ok || !tokenData.accessToken) {

@@ -1,57 +1,62 @@
 "use client";
 
 import { useState } from 'react';
-import { useAuth } from '@/lib/auth-context-with-msal';
+import { Button } from '@/components/ui/button';
 import { useCurrentUser } from '@/lib/current-user-context';
-import { Button } from './ui/button';
+import { useAzureAuth } from '@/lib/azure-auth-context';
 
 export function FastenConnectButton() {
-  const { refreshUser } = useCurrentUser();
-  const [isConnecting, setIsConnecting] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { user } = useCurrentUser();
+  const { getServiceToken } = useAzureAuth();
 
   const handleConnect = async () => {
-    setIsConnecting(true);
-    setError(null);
-    
     try {
-      const response = await fetch('/api/fasten/initiate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to initiate connection');
+      setIsLoading(true);
+      setError(null);
+
+      // Get Azure token for FHIR service
+      const azureToken = await getServiceToken();
+      if (!azureToken) {
+        throw new Error('Failed to get Azure token');
       }
 
-      const { url } = await response.json();
-      
-      // Refresh user data before redirecting
-      await refreshUser();
-      
-      window.location.href = url;
+      const response = await fetch('/api/fasten/initiate', {
+        headers: {
+          'Authorization': `Bearer ${azureToken}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to initiate connection');
+      }
+
+      window.location.href = data.url;
     } catch (error) {
-      console.error('Failed to initiate Fasten Connect:', error);
-      setError(error instanceof Error ? error.message : 'An error occurred');
-    } finally {
-      setIsConnecting(false);
+      console.error('Failed to connect:', error);
+      setError(error instanceof Error ? error.message : 'Failed to connect');
+      setIsLoading(false);
     }
   };
 
+  if (!user) {
+    return null;
+  }
+
   return (
-    <div className="flex flex-col items-center gap-4">
+    <div>
       <Button
         onClick={handleConnect}
-        disabled={isConnecting}
-        variant="primary"
-        size="lg"
+        disabled={isLoading}
+        className="w-full"
       >
-        {isConnecting ? 'Connecting...' : 'Connect Health Records'}
+        {isLoading ? 'Connecting...' : 'Connect Health Records'}
       </Button>
-      
       {error && (
-        <p className="text-red-500 text-sm">{error}</p>
+        <p className="text-red-500 text-sm mt-2">{error}</p>
       )}
     </div>
   );

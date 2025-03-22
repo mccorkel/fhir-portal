@@ -1,26 +1,17 @@
 'use client';
 
-import React from 'react';
-import { SessionProvider } from "next-auth/react";
-import { AuthProvider } from "../lib/auth-context-with-msal";
-import { CurrentUserProvider } from "../lib/current-user-context";
-import { MsalProvider } from "@azure/msal-react";
-import { PublicClientApplication } from "@azure/msal-browser";
-import { msalConfig } from "../lib/msal-config";
-
-// Initialize MSAL instance
-const msalInstance = new PublicClientApplication(msalConfig);
+import { CurrentUserProvider } from '@/lib/current-user-context';
+import { AuthProvider } from "@/lib/auth-context";
+import { AzureAuthProvider } from "@/lib/azure-auth-context";
 
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <MsalProvider instance={msalInstance}>
-      <SessionProvider>
-        <AuthProvider>
-          <CurrentUserProvider>
-            {children}
-          </CurrentUserProvider>
-        </AuthProvider>
-      </SessionProvider>
-    </MsalProvider>
+    <AuthProvider>
+      <AzureAuthProvider>
+        <CurrentUserProvider>
+          {children}
+        </CurrentUserProvider>
+      </AzureAuthProvider>
+    </AuthProvider>
   );
 } 

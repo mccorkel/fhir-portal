@@ -1,12 +1,13 @@
-import React from 'react';
 import type { Metadata } from "next";
-import { Providers } from "./providers";
-import { Header } from "@/components/ui/header";
+import { Inter } from "next/font/google";
+import { ClientLayout } from "./client-layout";
 import "./globals.css";
 
+const inter = Inter({ subsets: ["latin"] });
+
 export const metadata: Metadata = {
-  title: "TigerCare FHIR Portal",
-  description: "Access and manage your FHIR health records",
+  title: "TigerCare",
+  description: "Your health records, simplified.",
 };
 
 export default function RootLayout({
@@ -16,13 +17,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>
-        <Providers>
-          <Header />
-          <main className="min-h-[calc(100vh-4rem)]">
-            {children}
-          </main>
-        </Providers>
+      <body className={inter.className}>
+        <ClientLayout>{children}</ClientLayout>
       </body>
     </html>
   );

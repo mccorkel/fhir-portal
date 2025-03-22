@@ -1,80 +1,76 @@
-import { NextRequest, NextResponse } from "next/server";
-import { addFastenConnection } from "@/lib/cosmos-db";
-import { initiateExport } from "@/lib/fasten-api";
+import { NextRequest, NextResponse } from 'next/server';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { getUser, updateUser, FastenConnection } from '@/lib/cosmos-db';
+import { verifyWebhookSignature } from '@/lib/fasten-api';
+
+// Mark this route as dynamic
+export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    
-    // Get and verify state parameter
-    const stateParam = searchParams.get('state');
-    if (!stateParam) {
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/dashboard?error=invalid_state`
-      );
+    // Get the session
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
     }
 
-    // Decode state parameter
-    const { userId, timestamp } = JSON.parse(
-      Buffer.from(stateParam, 'base64').toString()
+    // Get the user
+    const user = await getUser(session.user.id);
+    if (!user) {
+      return NextResponse.redirect(new URL('/auth/signin', request.url));
+    }
+
+    // Get the state from the URL
+    const state = request.nextUrl.searchParams.get('state');
+    if (!state) {
+      return NextResponse.redirect(new URL('/health-records?error=missing_parameters', request.url));
+    }
+
+    // Verify the state matches what we stored
+    const storedState = user.fastenConnections?.find(
+      conn => conn.state === state
     );
 
-    // Verify state timestamp isn't too old (15 minutes)
-    if (Date.now() - timestamp > 15 * 60 * 1000) {
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/dashboard?error=expired_state`
-      );
+    if (!storedState) {
+      return NextResponse.redirect(new URL('/health-records?error=invalid_state', request.url));
     }
 
-    // Get connection details from query params
-    const orgConnectionId = searchParams.get('org_connection_id');
-    const platformType = searchParams.get('platform_type');
-    const portalId = searchParams.get('portal_id');
-    const connectionStatus = searchParams.get('connection_status');
-
-    // Verify required parameters
-    if (!orgConnectionId || !platformType || !portalId) {
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/dashboard?error=missing_parameters`
-      );
+    // Check if the connection is expired (30 minutes)
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    if (new Date(storedState.createdAt) < thirtyMinutesAgo) {
+      return NextResponse.redirect(new URL('/health-records?error=expired_state', request.url));
     }
 
-    // Verify connection status
-    if (connectionStatus !== 'authorized') {
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/dashboard?error=unauthorized_connection`
-      );
+    // Get the connection ID from the URL
+    const connectionId = request.nextUrl.searchParams.get('connection_id');
+    if (!connectionId) {
+      return NextResponse.redirect(new URL('/health-records?error=missing_parameters', request.url));
     }
 
-    // Add connection to user's record
-    const updatedUser = await addFastenConnection(userId, {
-      orgConnectionId,
-      platformType,
-      portalId
+    // Update the connection with the connection ID
+    const updatedConnections = user.fastenConnections.map(conn => {
+      if (conn.state === state) {
+        return {
+          ...conn,
+          orgConnectionId: connectionId,
+          status: 'connected' as const,
+          updatedAt: new Date().toISOString(),
+        };
+      }
+      return conn;
     });
 
-    if (!updatedUser) {
-      return NextResponse.redirect(
-        `${process.env.NEXTAUTH_URL}/dashboard?error=failed_to_save`
-      );
-    }
+    // Update the user
+    await updateUser({
+      ...user,
+      fastenConnections: updatedConnections,
+    });
 
-    // Initiate first export
-    try {
-      await initiateExport(orgConnectionId);
-    } catch (error) {
-      console.error('Failed to initiate export:', error);
-      // Continue despite export failure - we can retry later
-    }
-
-    // Redirect to success page
-    return NextResponse.redirect(
-      `${process.env.NEXTAUTH_URL}/dashboard?connection=success`
-    );
+    // Redirect to the health records page with success
+    return NextResponse.redirect(new URL('/health-records?connection=success', request.url));
   } catch (error) {
-    console.error("Error in GET /api/fasten/callback:", error);
-    return NextResponse.redirect(
-      `${process.env.NEXTAUTH_URL}/dashboard?error=internal_error`
-    );
+    console.error('Error in GET /api/fasten/callback:', error);
+    return NextResponse.redirect(new URL('/health-records?error=internal_error', request.url));
   }
 } 
