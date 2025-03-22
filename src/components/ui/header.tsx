@@ -24,8 +24,11 @@ export function Header() {
                 <Link href="/upload" className="text-gray-600 hover:text-gray-900">
                   Upload
                 </Link>
-                <div className="w-[200px]">
-                  <GoogleLoginButton />
+                <div className="flex items-center gap-4">
+                  <span className="text-sm text-gray-500">ID: {user.id}</span>
+                  <div className="w-[200px]">
+                    <GoogleLoginButton />
+                  </div>
                 </div>
               </>
             ) : (

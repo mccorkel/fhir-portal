@@ -26,7 +26,7 @@ export default function Home() {
         <h1 className="text-4xl font-bold mb-8 text-center">TigerCare FHIR Portal</h1>
         
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-10">
-          <Link href="/records" className="group rounded-lg border border-gray-300 px-5 py-4 transition-colors hover:border-blue-500 hover:bg-blue-50">
+          <Link href="/health-records" className="group rounded-lg border border-gray-300 px-5 py-4 transition-colors hover:border-blue-500 hover:bg-blue-50">
             <h2 className="mb-3 text-2xl font-semibold">
               Patient Records{' '}
               <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
