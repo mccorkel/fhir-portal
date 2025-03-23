@@ -88,18 +88,61 @@ export class FhirClient {
     }
   }
 
+  private async getAllPages(initialResponse: any): Promise<any> {
+    let allEntries = [...(initialResponse.entry || [])];
+    let nextUrl = initialResponse.link?.find((link: any) => link.relation === 'next')?.url;
+
+    console.log('Pagination info:', {
+      initialCount: allEntries.length,
+      hasNextPage: !!nextUrl,
+      total: initialResponse.total
+    });
+
+    while (nextUrl) {
+      console.log('Fetching next page:', nextUrl);
+      const nextResponse = await fetch(nextUrl, {
+        headers: {
+          'Authorization': `Bearer ${this.token}`,
+          'Accept': 'application/fhir+json',
+        },
+        mode: 'cors',
+      });
+
+      if (!nextResponse.ok) {
+        throw new Error(`Failed to fetch next page: ${nextResponse.status}`);
+      }
+
+      const nextData = await nextResponse.json();
+      allEntries = [...allEntries, ...(nextData.entry || [])];
+      nextUrl = nextData.link?.find((link: any) => link.relation === 'next')?.url;
+
+      console.log('Page fetched:', {
+        newCount: nextData.entry?.length || 0,
+        totalSoFar: allEntries.length,
+        hasMorePages: !!nextUrl
+      });
+    }
+
+    return {
+      ...initialResponse,
+      entry: allEntries
+    };
+  }
+
   async searchPatient(params: Record<string, string> = {}) {
     console.log('Searching for patients with params:', params);
     const queryString = new URLSearchParams(params).toString();
     const path = `Patient${queryString ? '?' + queryString : ''}`;
-    return this.request(path);
+    const initialResponse = await this.request(path);
+    return this.getAllPages(initialResponse);
   }
 
   async searchObservation(params: Record<string, string> = {}) {
     console.log('Searching for observations with params:', params);
     const queryString = new URLSearchParams(params).toString();
     const path = `Observation${queryString ? '?' + queryString : ''}`;
-    return this.request(path);
+    const initialResponse = await this.request(path);
+    return this.getAllPages(initialResponse);
   }
 
   async getPatient(id: string) {
