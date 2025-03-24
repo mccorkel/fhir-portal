@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: tigercareacr.azurecr.io
+  REGISTRY: ${{ secrets.REGISTRY_NAME }}
   CONTAINER_APP_NAME: fhir-portal
   RESOURCE_GROUP: tigercare-rg
   CONTAINER_APP_ENVIRONMENT: tigercare-env
