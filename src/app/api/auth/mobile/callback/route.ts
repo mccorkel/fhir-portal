@@ -113,7 +113,7 @@ export async function GET(request: Request) {
   if (!code) {
     console.warn('Missing authorization code');
     return NextResponse.redirect(
-      `https://auth.expo.io/@nicopip/tigercare-app?error=missing_code`
+      `exp://vwanoos-nicopip-8081.exp.direct?error=missing_code`
     );
   }
 
@@ -123,9 +123,9 @@ export async function GET(request: Request) {
     // Create user session
     const sessionToken = await createUserSession(tokens);
 
-    const redirectUrl = `https://auth.expo.io/@nicopip/tigercare-app?token=${sessionToken}`;
+    const redirectUrl = `exp://vwanoos-nicopip-8081.exp.direct?token=${sessionToken}`;
     console.log('Redirecting to Expo app:', {
-      baseUrl: 'https://auth.expo.io/@nicopip/tigercare-app',
+      baseUrl: 'exp://vwanoos-nicopip-8081.exp.direct',
       hasToken: !!sessionToken,
       tokenLength: sessionToken.length,
       fullUrl: redirectUrl.replace(sessionToken, '[TOKEN]')
@@ -142,7 +142,7 @@ export async function GET(request: Request) {
 
     const errorMessage = error instanceof Error ? error.message : 'Authentication failed';
     return NextResponse.redirect(
-      `https://auth.expo.io/@nicopip/tigercare-app?error=${encodeURIComponent(errorMessage)}`
+      `exp://vwanoos-nicopip-8081.exp.direct?error=${encodeURIComponent(errorMessage)}`
     );
   }
 } 
