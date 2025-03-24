@@ -9,7 +9,10 @@ export const dynamic = 'force-dynamic';
 
 // Helper function to construct URLs safely
 function getBaseUrl(request: NextRequest): string {
-  return process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || request.nextUrl.origin;
+  return process.env.NEXTAUTH_URL || 
+         process.env.NEXT_PUBLIC_APP_URL || 
+         request?.nextUrl?.origin || 
+         'https://z.tigerpanda.tv';  // Default fallback
 }
 
 export async function GET(request: NextRequest) {
