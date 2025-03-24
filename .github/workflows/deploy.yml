@@ -10,6 +10,7 @@ env:
   AZURE_WEBAPP_NAME: tigercare-app
   REGISTRY_NAME: tigercareregistry
   RESOURCE_GROUP: tigercare-rg
+  CONTAINER_APP_NAME: fhir-portal
 
 jobs:
   build-and-deploy:
@@ -37,16 +38,31 @@ jobs:
         cache-from: type=gha
         cache-to: type=gha,mode=max
 
-    - name: Deploy to Azure App Service
-      uses: azure/webapps-deploy@v2
+    - name: Azure login
+      uses: azure/login@v1
       with:
-        app-name: ${{ env.AZURE_WEBAPP_NAME }}
-        resource-group-name: ${{ env.RESOURCE_GROUP }}
-        images: ${{ env.REGISTRY_NAME }}.azurecr.io/fhir-portal:${{ github.sha }}
-        configuration-file: |
-          NEXTAUTH_URL=https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net
-          NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }}
-          AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }}
-          AZURE_AD_CLIENT_SECRET=${{ secrets.AZURE_AD_CLIENT_SECRET }}
-          AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }}
-          FHIR_SERVICE_URL=${{ secrets.FHIR_SERVICE_URL }} 
+        creds: ${{ secrets.AZURE_CREDENTIALS }}
+
+    - name: Deploy to Azure Container Apps
+      uses: azure/CLI@v1
+      with:
+        inlineScript: |
+          az config set extension.use_dynamic_install=yes_without_prompt
+          az containerapp update \
+            --name ${{ env.CONTAINER_APP_NAME }} \
+            --resource-group ${{ env.RESOURCE_GROUP }} \
+            --image ${{ env.REGISTRY_NAME }}.azurecr.io/fhir-portal:${{ github.sha }} \
+            --set-env-vars \
+              NEXTAUTH_URL=https://${{ env.AZURE_WEBAPP_NAME }}.azurewebsites.net \
+              NEXTAUTH_SECRET=${{ secrets.NEXTAUTH_SECRET }} \
+              AZURE_AD_CLIENT_ID=${{ secrets.AZURE_AD_CLIENT_ID }} \
+              AZURE_AD_CLIENT_SECRET=${{ secrets.AZURE_AD_CLIENT_SECRET }} \
+              AZURE_AD_TENANT_ID=${{ secrets.AZURE_AD_TENANT_ID }} \
+              FHIR_SERVICE_URL=${{ secrets.FHIR_SERVICE_URL }} \
+              NEXT_PUBLIC_APP_URL=${{ secrets.NEXT_PUBLIC_APP_URL }} \
+              NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID=${{ secrets.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID }} \
+              GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }} \
+              JWT_SECRET=${{ secrets.JWT_SECRET }} \
+              AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }} \
+              AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }} \
+              AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }} 
