@@ -3,6 +3,10 @@ import { AzureOpenAI } from 'openai';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 
+// Mark this route as dynamic and Node.js compatible
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 interface SessionPayload {
   sub: string;
   email: string;
@@ -10,7 +14,7 @@ interface SessionPayload {
   picture?: string;
 }
 
-const DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4';
+const DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4-1106-preview';
 
 const client = new AzureOpenAI({
   apiKey: process.env.AZURE_OPENAI_KEY,
