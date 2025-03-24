@@ -3,44 +3,30 @@ import { AzureOpenAI } from 'openai';
 import { cookies } from 'next/headers';
 import jwt from 'jsonwebtoken';
 
-// Initialize the Azure OpenAI client
-const client = new AzureOpenAI({
-  apiKey: process.env.AZURE_OPENAI_KEY,
-  endpoint: 'https://tigercare-oai.openai.azure.com/',
-  deployment: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4',
-  apiVersion: '2024-02-15-preview'
-});
+interface SessionPayload {
+  sub: string;
+  email: string;
+  name: string;
+  picture?: string;
+}
 
 const DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4';
 
-async function validateSession(request: Request) {
-  const cookieStore = cookies();
-  const sessionToken = cookieStore.get('session_token');
-
-  if (!sessionToken) {
-    return null;
-  }
-
-  try {
-    const payload = jwt.verify(
-      sessionToken.value,
-      process.env.JWT_SECRET || 'your-secret-key'
-    );
-    return payload;
-  } catch (error) {
-    console.error('Session validation error:', error);
-    return null;
-  }
-}
+const client = new AzureOpenAI({
+  apiKey: process.env.AZURE_OPENAI_KEY,
+  endpoint: process.env.AZURE_OPENAI_ENDPOINT || 'https://tigercare-oai.openai.azure.com',
+  apiVersion: '2024-02-15-preview',
+  deployment: DEPLOYMENT_NAME
+});
 
 // Helper function to create a streaming response
-function createStream(stream: AsyncIterable<any>) {
+function createStream(response: AsyncIterable<any>) {
   const encoder = new TextEncoder();
   const customReadable = new ReadableStream({
     async start(controller) {
       try {
         let totalTokens = 0;
-        for await (const chunk of stream) {
+        for await (const chunk of response) {
           // Extract and send the delta content
           const content = chunk.choices[0]?.delta?.content || '';
           if (content) {
@@ -72,85 +58,84 @@ function createStream(stream: AsyncIterable<any>) {
   });
 }
 
-export async function POST(request: Request) {
-  console.log('AI Chat request received:', {
-    url: request.url,
-    method: request.method,
-    headers: Object.fromEntries(request.headers.entries())
-  });
+async function validateSession(request: Request): Promise<SessionPayload | null> {
+  const cookieStore = cookies();
+  const sessionToken = cookieStore.get('session_token');
 
-  // Validate session
-  const session = await validateSession(request);
-  if (!session) {
-    console.warn('Unauthorized AI chat request');
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!sessionToken) {
+    return null;
   }
 
   try {
+    const payload = jwt.verify(
+      sessionToken.value,
+      process.env.JWT_SECRET || 'your-secret-key'
+    ) as SessionPayload;
+    return payload;
+  } catch (error) {
+    console.error('Session validation error:', error);
+    return null;
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    console.log('Chat request received');
+
+    // Validate session
+    const session = await validateSession(request);
+    if (!session) {
+      console.log('Unauthorized: No valid session');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    console.log('Session validated for user:', session.email);
+
     const body = await request.json();
     const { messages, stream = false } = body;
 
     if (!Array.isArray(messages) || messages.length === 0) {
-      console.warn('Invalid request body:', { body });
-      return NextResponse.json(
-        { error: 'Invalid request. Messages array is required.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Invalid messages array' }, { status: 400 });
     }
 
     console.log('Processing chat request:', {
-      userId: (session as any).sub,
       messageCount: messages.length,
-      firstMessage: messages[0].content.substring(0, 50) + '...',
-      deployment: DEPLOYMENT_NAME,
-      isStreaming: stream
+      stream,
+      deployment: DEPLOYMENT_NAME
     });
 
+    const chatRequest = {
+      messages,
+      temperature: 0.7,
+      max_tokens: 800,
+      model: DEPLOYMENT_NAME
+    };
+
     if (stream) {
-      const streamingCompletion = await client.chat.completions.create({
-        model: DEPLOYMENT_NAME,
-        messages: messages.map(m => ({
-          role: m.role,
-          content: m.content
-        })),
-        temperature: 0.7,
-        max_tokens: 800,
+      const streamingResponse = await client.chat.completions.create({
+        ...chatRequest,
         stream: true
       });
-
-      return createStream(streamingCompletion);
+      return createStream(streamingResponse);
     }
 
     const completion = await client.chat.completions.create({
-      model: DEPLOYMENT_NAME,
-      messages: messages.map(m => ({
-        role: m.role,
-        content: m.content
-      })),
-      temperature: 0.7,
-      max_tokens: 800,
+      ...chatRequest,
+      stream: false
     });
-
+    
     console.log('Chat completion received:', {
-      hasChoices: !!completion.choices,
-      choiceCount: completion.choices?.length,
-      promptTokens: completion.usage?.prompt_tokens,
-      completionTokens: completion.usage?.completion_tokens,
-      totalTokens: completion.usage?.total_tokens
+      usage: completion.usage,
+      messageCount: completion.choices.length
     });
 
     return NextResponse.json({
-      message: completion.choices[0]?.message?.content,
+      content: completion.choices[0].message.content,
       usage: completion.usage
     });
 
   } catch (error) {
-    console.error('AI Chat error:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      type: error instanceof Error ? error.name : 'Unknown type',
-      stack: error instanceof Error ? error.stack : undefined
-    });
-
+    console.error('Chat error:', error);
     return NextResponse.json(
       { error: 'Failed to process chat request' },
       { status: 500 }
