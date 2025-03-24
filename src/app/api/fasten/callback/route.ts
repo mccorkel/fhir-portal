@@ -22,13 +22,13 @@ export async function GET(request: NextRequest) {
     // Get the session
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
-      return NextResponse.redirect(new URL('/auth/signin', baseUrl));
+      return NextResponse.redirect(new URL('/', baseUrl));
     }
 
     // Get the user
     const user = await getUser(session.user.id);
     if (!user) {
-      return NextResponse.redirect(new URL('/auth/signin', baseUrl));
+      return NextResponse.redirect(new URL('/', baseUrl));
     }
 
     // Get the state from the URL
