@@ -15,7 +15,15 @@ RUN pnpm install --frozen-lockfile
 # Copy source code
 COPY . .
 
-# Build application
+# Build application with environment variables
+ARG AZURE_OPENAI_KEY
+ARG AZURE_OPENAI_ENDPOINT
+ARG AZURE_OPENAI_DEPLOYMENT
+
+ENV AZURE_OPENAI_KEY=$AZURE_OPENAI_KEY
+ENV AZURE_OPENAI_ENDPOINT=$AZURE_OPENAI_ENDPOINT
+ENV AZURE_OPENAI_DEPLOYMENT=$AZURE_OPENAI_DEPLOYMENT
+
 RUN pnpm run build
 
 # Production stage
