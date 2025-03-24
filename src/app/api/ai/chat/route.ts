@@ -16,13 +16,6 @@ interface SessionPayload {
 
 const DEPLOYMENT_NAME = process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4-1106-preview';
 
-const client = new AzureOpenAI({
-  apiKey: process.env.AZURE_OPENAI_KEY,
-  endpoint: process.env.AZURE_OPENAI_ENDPOINT || 'https://tigercare-oai.openai.azure.com',
-  apiVersion: '2024-02-15-preview',
-  deployment: DEPLOYMENT_NAME
-});
-
 // Helper function to create a streaming response
 function createStream(response: AsyncIterable<any>) {
   const encoder = new TextEncoder();
@@ -94,6 +87,22 @@ export async function POST(request: Request) {
     }
 
     console.log('Session validated for user:', session.email);
+
+    // Initialize OpenAI client
+    const apiKey = process.env.AZURE_OPENAI_API_KEY || process.env.AZURE_OPENAI_KEY;
+    const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
+
+    if (!apiKey || !endpoint) {
+      console.error('Azure OpenAI configuration missing');
+      return NextResponse.json({ error: 'Service configuration error' }, { status: 500 });
+    }
+
+    const client = new AzureOpenAI({
+      apiKey: apiKey,
+      endpoint: endpoint,
+      apiVersion: '2024-02-15-preview',
+      deployment: DEPLOYMENT_NAME
+    });
 
     const body = await request.json();
     const { messages, stream = false } = body;

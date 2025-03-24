@@ -34,7 +34,7 @@ jobs:
           push: true
           tags: ${{ env.REGISTRY }}/${{ env.CONTAINER_APP_NAME }}:${{ github.sha }}
           build-args: |
-            AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }}
+            AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
             AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
             AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
           secrets: |
@@ -59,7 +59,7 @@ jobs:
           registryUsername: ${{ secrets.REGISTRY_USERNAME }}
           registryPassword: ${{ secrets.REGISTRY_PASSWORD }}
           environmentVariables: |
-            AZURE_OPENAI_KEY=${{ secrets.AZURE_OPENAI_KEY }}
+            AZURE_OPENAI_API_KEY=${{ secrets.AZURE_OPENAI_API_KEY }}
             AZURE_OPENAI_ENDPOINT=${{ secrets.AZURE_OPENAI_ENDPOINT }}
             AZURE_OPENAI_DEPLOYMENT=${{ secrets.AZURE_OPENAI_DEPLOYMENT }}
             NEXTAUTH_URL=${{ secrets.NEXTAUTH_URL }}
