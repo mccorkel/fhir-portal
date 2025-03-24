@@ -44,5 +44,5 @@ export async function GET(request: Request) {
     finalUrl: googleAuthUrl.toString().replace(process.env.NEXT_PUBLIC_GOOGLE_WEB_CLIENT_ID || '', '[CLIENT_ID]')
   });
 
-  return NextResponse.redirect(googleAuthUrl);
+  return NextResponse.json({ url: googleAuthUrl.toString() });
 } 

@@ -11,11 +11,17 @@ export function GoogleLoginButton() {
   const handleLogin = async () => {
     try {
       setIsLoading(true);
-      const response = await fetch('/api/auth/google/initiate');
-      const { url } = await response.json();
-      window.location.href = url;
+      const baseUrl = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+      const redirectUri = `${baseUrl}/api/auth/google/callback`;
+      const response = await fetch(`/api/auth/google/initiate?redirect_uri=${encodeURIComponent(redirectUri)}`);
+      if (!response.ok) {
+        throw new Error('Failed to initiate login');
+      }
+      const data = await response.json();
+      window.location.href = data.url;
     } catch (error) {
       console.error('Failed to initiate login:', error);
+    } finally {
       setIsLoading(false);
     }
   };

@@ -44,12 +44,11 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
     setIsLoading(false);
   }, []);
 
-  const logout = () => {
+  const logout = async () => {
     setUser(null);
     // Clear cookies
     document.cookie = 'user=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
-    document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
     // Redirect to home
     window.location.href = '/';
   };
